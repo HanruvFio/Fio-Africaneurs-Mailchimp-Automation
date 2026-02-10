@@ -4,7 +4,73 @@ This guide explains how to use the provided PHP script to automatically update M
 ## 1. The PHP Script
 Copy the code block below into your child theme's functions.php file or a plugin like Code Snippets.
 
+/**
+ * Hook: set_user_role
+ * This action fires whenever a user's role is updated in the WordPress database.
+ * * @param int    $user_id   The ID of the user being updated.
+ * @param string $new_role  The string slug of the new role (e.g., 'subscriber').
+ * @param array  $old_roles An array of the user's previous roles.
+ */
+add_action('set_user_role', 'sync_africaneur_status_to_mailchimp', 10, 3);
 
+function sync_africaneur_status_to_mailchimp($user_id, $new_role, $old_roles) {
+    
+    // --- SECTION 1: CONFIGURATION ---
+    // Update these with your specific Mailchimp account details.
+    $api_key       = 'YOUR_API_KEY';      // Found in Mailchimp > Account > Extras > API Keys
+    $audience_id   = 'YOUR_AUDIENCE_ID';  // Found in Mailchimp > Audience > Settings
+    $server_prefix = 'usX';               // The suffix of your API key (e.g., us12, us20)
+
+    // --- SECTION 2: USER IDENTIFICATION ---
+    // Mailchimp identifies subscribers using an MD5 hash of their lowercase email address.
+    $user            = get_userdata($user_id);
+    $email           = $user->user_email;
+    $subscriber_hash = md5(strtolower($email)); 
+
+    // --- SECTION 3: ROLE TO TAG MAPPING ---
+    // Key (left) = The WordPress Role Slug.
+    // Value (right) = The exact Tag Name as it appears in Mailchimp.
+    $role_to_tag_map = [
+        'free_africaneur'     => 'Free Africaneur',
+        'paid_africaneur'     => 'Paid Africaneur',
+        'inactive_africaneur' => 'Inactive Africaneur'
+    ];
+
+    // Check if the role being assigned is one of our managed "Africaneur" roles.
+    if (!isset($role_to_tag_map[$new_role])) {
+        return;
+    }
+
+    // --- SECTION 4: CONSTRUCTING THE PAYLOAD ---
+    // We loop through our map to create a list of instructions for Mailchimp.
+    // We set the status of the NEW role to 'active' and others to 'inactive'.
+    $tags_to_send = [];
+    foreach ($role_to_tag_map as $role_key => $tag_name) {
+        $tags_to_send[] = [
+            'name'   => $tag_name,
+            'status' => ($role_key === $new_role) ? 'active' : 'inactive'
+        ];
+    }
+
+    // --- SECTION 5: THE API REQUEST ---
+    // Note: URL must be clean without extra brackets or markdown links inside the code.
+    $url = "https://{$server_prefix}.api.mailchimp.com/3.0/lists/{$audience_id}/members/{$subscriber_hash}/tags";
+
+    $response = wp_remote_post($url, [
+        'method'  => 'POST',
+        'headers' => [
+            'Authorization' => 'Basic ' . base64_encode('user:' . $api_key),
+            'Content-Type'  => 'application/json',
+        ],
+        'body'    => json_encode(['tags' => $tags_to_send]),
+    ]);
+
+    // --- SECTION 6: ERROR LOGGING ---
+    // Log failures to wp-content/debug.log.
+    if (is_wp_error($response)) {
+        error_log('Mailchimp Sync Error: ' . $response->get_error_message());
+    }
+}
 
 ## 2. Detailed Explanation
 ### The Hook (set_user_role)
