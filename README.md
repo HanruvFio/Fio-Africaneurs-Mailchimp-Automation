@@ -10,16 +10,22 @@ This ensures your WordPress roles stay in sync with your Mailchimp audience tags
 4. Log into your mailchimp and connect it.
 5. Save Changes. Ensure the status shows a green **Connected** light.
 
-### 2. Create Sync Rules
-Go to **FuseWP > User Sync > Add New** and create these three rules:
+### 2. Sync Rules (The "Tag Swap")
+Go to **FuseWP > User Sync > Add New**. Create these three rules. 
 
-| Rule Name | Source (WP Role) | Destination (Mailchimp Tag) | Special Setting |
+**Crucial:** For all three rules, ensure "Email Address" is mapped to "Email Address".
+
+| Rule Name | Source (WP Role) | Action (Mailchimp) | Setting to Enable |
 | :--- | :--- | :--- | :--- |
-| **Free Sync** | Free Africaneur | `Free Africaneur` | Enable: "Remove user when role changes" |
-| **Paid Sync** | Paid Africaneur | `Paid Africaneur` | Enable: "Remove user when role changes" |
-| **Inactive Sync** | Inactive Africaneur | `Inactive Africaneur` | Enable: "Remove user when role changes" |
+| **Status: Free** | Free Africaneur | Add Tag: `Free Africaneur` | "Remove user from destination when they no longer belong to this role" |
+| **Status: Paid** | Paid Africaneur | Add Tag: `Paid Africaneur` | "Remove user from destination when they no longer belong to this role" |
+| **Status: Inactive**| Inactive Africaneur | Add Tag: `Inactive Africaneur`| "Remove user from destination when they no longer belong to this role" |
 
-> **Pro Tip:** Enabling "Remove user when role changes" is what prevents tag clutter. It ensures a user only ever has **one** active Africaneur tag at a time.
+### How this works in practice:
+* **When they register:** They get the `Free Africaneur` tag.
+* **When you upgrade them to Paid:** FuseWP sees they are no longer "Free" and **removes** the `Free` tag, then sees they are now "Paid" and **adds** the `Paid` tag.
+* **When they lapse to Inactive:** FuseWP **removes** the `Paid` tag and **adds** the `Inactive` tag.
+* **Result:** The contact stays in Mailchimp the whole time; only the label changes.
 
 ---
 
